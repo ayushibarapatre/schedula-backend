@@ -2,12 +2,17 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
+// ✅ Auth module import
+import { AuthModule } from './modules/auth/auth.module';
+
 @Module({
   imports: [
+    // 🔹 Environment variables
     ConfigModule.forRoot({
       isGlobal: true,
     }),
 
+    // 🔹 Database connection
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -21,6 +26,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         synchronize: true,
       }),
     }),
+
+    // 🔹 Auth feature module
+    AuthModule,
   ],
 })
 export class AppModule {}

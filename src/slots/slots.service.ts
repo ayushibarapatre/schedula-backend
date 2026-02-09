@@ -43,12 +43,47 @@ export class SlotsService {
   }
 
   async updateSlot(id: string, data: UpdateSlotDto) {
-    const slot = await this.slotRepository.findOneBy({ id });
-    if (!slot) {
-      throw new BadRequestException('Slot not found');
-    }
+  const slot = await this.slotRepository.findOneBy({ id });
 
-    Object.assign(slot, data);
-    return this.slotRepository.save(slot);
+  if (!slot) {
+    throw new BadRequestException('Slot not found');
   }
+
+  // 🔴 SAME TIME UPDATE BLOCK
+  if (
+    data.startTime === slot.startTime &&
+    data.endTime === slot.endTime &&
+    (!data.dayOfWeek || data.dayOfWeek === slot.dayOfWeek)
+  ) {
+    throw new BadRequestException(
+      'Slot time is same as existing slot'
+    );
+  }
+
+  const doctorId = slot.doctorId;
+  const dayOfWeek = data.dayOfWeek ?? slot.dayOfWeek;
+  const startTime = data.startTime ?? slot.startTime;
+  const endTime = data.endTime ?? slot.endTime;
+
+  const overlappingSlot = await this.slotRepository
+    .createQueryBuilder('slot')
+    .where('slot.doctorId = :doctorId', { doctorId })
+    .andWhere('slot.dayOfWeek = :dayOfWeek', { dayOfWeek })
+    .andWhere('slot.id != :id', { id }) // exclude same slot
+    .andWhere(
+      ':startTime < slot.endTime AND :endTime > slot.startTime',
+      { startTime, endTime },
+    )
+    .getOne();
+
+  if (overlappingSlot) {
+    throw new BadRequestException(
+      'Slot time overlaps with an existing slot',
+    );
+  }
+
+  Object.assign(slot, data);
+  return this.slotRepository.save(slot);
+}
+
 }

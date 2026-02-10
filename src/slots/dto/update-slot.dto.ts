@@ -1,9 +1,10 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { DayOfWeek } from '../enum/day-of-week.enum';
 
 export class UpdateSlotDto {
   @IsOptional()
-  @IsString()
-  dayOfWeek?: string;
+  @IsEnum(DayOfWeek)
+  dayOfWeek?: DayOfWeek;
 
   @IsOptional()
   @IsString()

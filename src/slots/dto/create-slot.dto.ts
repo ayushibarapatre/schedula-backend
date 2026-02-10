@@ -1,17 +1,16 @@
-import { IsString, Matches } from 'class-validator';
+import { IsEnum, IsString } from 'class-validator';
+import { DayOfWeek } from '../enum/day-of-week.enum';
 
 export class CreateSlotDto {
   @IsString()
   doctorId: string;
 
-  @IsString()
-  dayOfWeek: string;
+  @IsEnum(DayOfWeek)
+  dayOfWeek: DayOfWeek;
 
   @IsString()
-  @Matches(/^([0-1]\d|2[0-3]):([0-5]\d)$/)
   startTime: string;
 
   @IsString()
-  @Matches(/^([0-1]\d|2[0-3]):([0-5]\d)$/)
   endTime: string;
 }

@@ -1,19 +1,31 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+} from 'typeorm';
+import { Availability } from './availability/availability.entity';
 
 @Entity()
 export class Slot {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column()
-  doctorId: string;
-
-  @Column()
-  dayOfWeek: string;
+  @ManyToOne(() => Availability, { onDelete: 'CASCADE' })
+  availability: Availability;
 
   @Column()
   startTime: string;
 
   @Column()
   endTime: string;
+
+  @Column()
+  maxPatients: number;
+
+  @Column({ default: 0 })
+  bookedCount: number;
+
+  @Column({ default: true })
+  isActive: boolean;
 }

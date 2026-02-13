@@ -3,19 +3,16 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor() {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: process.env.JWT_SECRET || 'secret',
+      ignoreExpiration: false,
+      secretOrKey: 'secretKey', // same as JwtModule
     });
   }
 
   async validate(payload: any) {
-    // payload wahi hai jo token sign karte waqt diya tha
-    return {
-      userId: payload.userId,
-      role: payload.role,
-    };
+    return payload; // req.user me payload milega
   }
 }

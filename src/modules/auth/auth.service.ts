@@ -1,66 +1,51 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { JwtService } from '@nestjs/jwt';
-
-import { GoogleService } from './google.service';
 import { User } from './user.entity';
+import { GoogleService } from './google.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly googleService: GoogleService,
     private readonly jwtService: JwtService,
-
     @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
+    private readonly userRepository: Repository<User>,
   ) {}
 
-  async googleLogin(data: any) {
-    const { idToken, role } = data;
+  async googleLogin(idToken: string, role: string) {
+    // 1️⃣ verify google token (dummy now)
+    const googleUser =
+      await this.googleService.verifyToken(idToken);
 
-    // 🔹 1. Role validation (basic safety)
-    if (!role || !['PATIENT', 'DOCTOR'].includes(role)) {
-      throw new UnauthorizedException('Invalid role');
-    }
-
-    // 🔹 2. Verify Google token
-    const googleUser = await this.googleService.verifyIdToken(idToken);
-    if (!googleUser) {
-      throw new UnauthorizedException('Invalid Google token');
-    }
-
-    // 🔹 3. Find user in DB
-    let user = await this.userRepo.findOne({
+    // 2️⃣ find or create user
+    let user = await this.userRepository.findOne({
       where: { email: googleUser.email },
     });
 
-    // 🔹 4. Create user if not exists
     if (!user) {
-      user = this.userRepo.create({
+      user = this.userRepository.create({
         email: googleUser.email,
         name: googleUser.name,
         role,
       });
-
-      await this.userRepo.save(user);
+      user = await this.userRepository.save(user);
     }
 
-    // 🔹 5. Generate JWT token
-    const token = this.jwtService.sign({
-      userId: user.id,
+    // 3️⃣ 🔥 JWT PAYLOAD (MOST IMPORTANT FIX)
+    const payload = {
+      sub: user.id,          // ✅ REQUIRED
       role: user.role,
-    });
+      email: user.email,
+    };
 
-    // 🔹 6. Final response
+    const accessToken =
+      this.jwtService.sign(payload);
+
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      token,
+      accessToken,
+      user,
     };
   }
 }

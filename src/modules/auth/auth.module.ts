@@ -2,30 +2,26 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 
-import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
 import { GoogleService } from './google.service';
-import { User } from './user.entity';
 import { JwtStrategy } from './jwt.strategy';
-import { ProfileController } from './profile.controller';
+import { User } from './user.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),
-
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'secret',
-      signOptions: { expiresIn: '1h' },
+      secret: 'secretKey',
+      signOptions: { expiresIn: '1d' },
     }),
   ],
-  controllers: [
-    AuthController,
-    ProfileController, // ✅ STEP 10.3 controller
-  ],
+  controllers: [AuthController],
   providers: [
     AuthService,
     GoogleService,
-    JwtStrategy, // ✅ STEP 10.1 strategy
+    JwtStrategy, // ✅ THIS LINE FIXES ERROR
   ],
+  exports: [JwtModule],
 })
 export class AuthModule {}

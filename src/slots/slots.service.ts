@@ -1,89 +1,67 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Slot } from './slot.entity';
-import { CreateSlotDto } from './dto/create-slot.dto';
-import { UpdateSlotDto } from './dto/update-slot.dto';
+import { Availability } from './availability/availability.entity';
 
 @Injectable()
 export class SlotsService {
   constructor(
     @InjectRepository(Slot)
     private readonly slotRepository: Repository<Slot>,
+
+    @InjectRepository(Availability)
+    private readonly availabilityRepository: Repository<Availability>,
   ) {}
 
-  async createSlot(data: CreateSlotDto) {
-    const { doctorId, dayOfWeek, startTime, endTime } = data;
+  private timeToMinutes(time: string): number {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+  }
 
-    const overlappingSlot = await this.slotRepository
-      .createQueryBuilder('slot')
-      .where('slot.doctorId = :doctorId', { doctorId })
-      .andWhere('slot.dayOfWeek = :dayOfWeek', { dayOfWeek })
-      .andWhere(':startTime < slot.endTime AND :endTime > slot.startTime', {
-        startTime,
-        endTime,
-      })
-      .getOne();
+  private minutesToTime(min: number): string {
+    const h = Math.floor(min / 60)
+      .toString()
+      .padStart(2, '0');
+    const m = (min % 60).toString().padStart(2, '0');
+    return `${h}:${m}`;
+  }
 
-    if (overlappingSlot) {
-      throw new BadRequestException(
-        'Slot time overlaps with an existing slot',
-      );
+  async generateSlots(availabilityId: number) {
+    const availability =
+      await this.availabilityRepository.findOne({
+        where: { id: availabilityId },
+      });
+
+    if (!availability) return [];
+
+    const start = this.timeToMinutes(
+      availability.startTime,
+    );
+    const end = this.timeToMinutes(
+      availability.endTime,
+    );
+
+    const slots: Slot[] = [];
+    let current = start;
+
+    while (
+      current + availability.slotDuration <=
+      end
+    ) {
+      const slot = this.slotRepository.create({
+        availability,
+        startTime: this.minutesToTime(current),
+        endTime: this.minutesToTime(
+          current + availability.slotDuration,
+        ),
+        maxPatients: availability.maxPatientsPerSlot,
+      });
+
+      slots.push(slot);
+      current += availability.slotDuration;
     }
 
-    const slot = this.slotRepository.create(data);
-    return this.slotRepository.save(slot);
+    return this.slotRepository.save(slots);
   }
-
-  async getSlotsByDoctor(doctorId: string) {
-    return this.slotRepository.find({
-      where: { doctorId },
-      order: { startTime: 'ASC' },
-    });
-  }
-
-  async updateSlot(id: string, data: UpdateSlotDto) {
-  const slot = await this.slotRepository.findOneBy({ id });
-
-  if (!slot) {
-    throw new BadRequestException('Slot not found');
-  }
-
-  // 🔴 SAME TIME UPDATE BLOCK
-  if (
-    data.startTime === slot.startTime &&
-    data.endTime === slot.endTime &&
-    (!data.dayOfWeek || data.dayOfWeek === slot.dayOfWeek)
-  ) {
-    throw new BadRequestException(
-      'Slot time is same as existing slot'
-    );
-  }
-
-  const doctorId = slot.doctorId;
-  const dayOfWeek = data.dayOfWeek ?? slot.dayOfWeek;
-  const startTime = data.startTime ?? slot.startTime;
-  const endTime = data.endTime ?? slot.endTime;
-
-  const overlappingSlot = await this.slotRepository
-    .createQueryBuilder('slot')
-    .where('slot.doctorId = :doctorId', { doctorId })
-    .andWhere('slot.dayOfWeek = :dayOfWeek', { dayOfWeek })
-    .andWhere('slot.id != :id', { id }) // exclude same slot
-    .andWhere(
-      ':startTime < slot.endTime AND :endTime > slot.startTime',
-      { startTime, endTime },
-    )
-    .getOne();
-
-  if (overlappingSlot) {
-    throw new BadRequestException(
-      'Slot time overlaps with an existing slot',
-    );
-  }
-
-  Object.assign(slot, data);
-  return this.slotRepository.save(slot);
-}
-
 }

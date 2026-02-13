@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { AuthModule } from './modules/auth/auth.module';
+import { DoctorModule } from './modules/doctor/doctor.module';
+import { AvailabilityModule } from './slots/availability/availability.module';
 import { SlotsModule } from './slots/slots.module';
 
 @Module({
@@ -14,15 +16,17 @@ import { SlotsModule } from './slots/slots.module';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        type: 'sqlite',              // 👈 TEMP for local
-        database: 'db.sqlite',
+        type: 'sqlite',
+        database: 'db_dev.sqlite',
         autoLoadEntities: true,
         synchronize: true,
       }),
     }),
 
     AuthModule,
-    SlotsModule, // 🔥 THIS WAS THE MISSING PIECE
+    DoctorModule,        // ✅ REQUIRED
+    AvailabilityModule,  // ✅ REQUIRED
+    SlotsModule,
   ],
 })
 export class AppModule {}

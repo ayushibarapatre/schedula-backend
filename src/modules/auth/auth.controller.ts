@@ -3,10 +3,17 @@ import { AuthService } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+  ) {}
 
   @Post('google')
-  googleLogin(@Body() body: any) {
-    return this.authService.googleLogin(body);
+  async googleLogin(@Body() body: any) {
+    const { idToken, role } = body;
+
+    return this.authService.googleLogin(
+      idToken,
+      role,
+    );
   }
 }

@@ -4,6 +4,8 @@ import {
   Body,
   Req,
   UseGuards,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AvailabilityService } from './availability.service';
@@ -17,16 +19,15 @@ export class AvailabilityController {
   ) {}
 
   @Post()
-  createAvailability(
-    @Req() req: any,
-    @Body() dto: CreateAvailabilityDto,
-  ) {
-    // ✅ JWT payload me user id = sub
+  createAvailability(@Req() req: any, @Body() dto: CreateAvailabilityDto) {
     const userId = req.user.sub;
+    return this.availabilityService.addAvailability(userId, dto);
+  }
 
-    return this.availabilityService.addAvailability(
-      userId,
-      dto,
-    );
+  // ✅ NEW DELETE API
+  @Delete(':id')
+  deleteAvailability(@Req() req: any, @Param('id') id: number) {
+    const userId = req.user.sub;
+    return this.availabilityService.deleteAvailability(userId, id);
   }
 }

@@ -4,8 +4,8 @@ import {
   Body,
   Req,
   UseGuards,
-  Delete,
-  Param,
+  Get,
+  Query,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AvailabilityService } from './availability.service';
@@ -19,15 +19,26 @@ export class AvailabilityController {
   ) {}
 
   @Post()
-  createAvailability(@Req() req: any, @Body() dto: CreateAvailabilityDto) {
+  createAvailability(
+    @Req() req: any,
+    @Body() dto: CreateAvailabilityDto,
+  ) {
     const userId = req.user.sub;
-    return this.availabilityService.addAvailability(userId, dto);
+    return this.availabilityService.addAvailability(
+      userId,
+      dto,
+    );
   }
 
-  // ✅ NEW DELETE API
-  @Delete(':id')
-  deleteAvailability(@Req() req: any, @Param('id') id: number) {
-    const userId = req.user.sub;
-    return this.availabilityService.deleteAvailability(userId, id);
+  // 🔹 GET availability for a specific date
+  @Get()
+  getAvailabilityForDate(
+    @Query('doctorId') doctorId: number,
+    @Query('date') date: string,
+  ) {
+    return this.availabilityService.getAvailabilityForDate(
+      doctorId,
+      date,
+    );
   }
 }

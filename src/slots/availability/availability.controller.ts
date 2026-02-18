@@ -4,6 +4,8 @@ import {
   Body,
   Req,
   UseGuards,
+  Get,
+  Query,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AvailabilityService } from './availability.service';
@@ -21,12 +23,22 @@ export class AvailabilityController {
     @Req() req: any,
     @Body() dto: CreateAvailabilityDto,
   ) {
-    // ✅ JWT payload me user id = sub
     const userId = req.user.sub;
-
     return this.availabilityService.addAvailability(
       userId,
       dto,
+    );
+  }
+
+  // 🔹 GET availability for a specific date
+  @Get()
+  getAvailabilityForDate(
+    @Query('doctorId') doctorId: number,
+    @Query('date') date: string,
+  ) {
+    return this.availabilityService.getAvailabilityForDate(
+      doctorId,
+      date,
     );
   }
 }

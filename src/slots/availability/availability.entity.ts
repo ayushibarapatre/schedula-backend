@@ -21,8 +21,6 @@ export enum Day {
 
 /**
  * 🔹 Availability Type
- * RECURRING → har week repeat hoti hai
- * CUSTOM → specific date ke liye
  */
 export enum AvailabilityType {
   RECURRING = 'RECURRING',
@@ -31,8 +29,6 @@ export enum AvailabilityType {
 
 /**
  * 🔹 Scheduling Type
- * WAVE → slots + duration
- * STREAM → continuous time window
  */
 export enum SchedulingType {
   WAVE = 'WAVE',
@@ -45,20 +41,20 @@ export class Availability {
   id: number;
 
   /**
-   * 🔹 Day of week (ONLY for recurring availability)
+   * 🔹 Day of week (ONLY for RECURRING)
    */
   @Column({ type: 'text', nullable: true })
-  day: Day;
+  day?: Day;
 
   /**
-   * 🔹 Specific date (ONLY for custom availability)
-   * Format: YYYY-MM-DD
+   * 🔹 Specific date (ONLY for CUSTOM)
+   * YYYY-MM-DD
    */
   @Column({ type: 'date', nullable: true })
-  date: string;
+  date?: string;
 
   /**
-   * 🔹 RECURRING / CUSTOM
+   * 🔹 Availability type
    */
   @Column({
     type: 'text',
@@ -67,7 +63,7 @@ export class Availability {
   availabilityType: AvailabilityType;
 
   /**
-   * 🔹 WAVE / STREAM
+   * 🔹 Scheduling type
    */
   @Column({
     type: 'text',
@@ -75,6 +71,9 @@ export class Availability {
   })
   schedulingType: SchedulingType;
 
+  /**
+   * 🔹 Common time window
+   */
   @Column({ type: 'time' })
   startTime: string;
 
@@ -82,16 +81,20 @@ export class Availability {
   endTime: string;
 
   /**
-   * 🔹 Slot duration (ONLY for WAVE scheduling)
+   * 🔹 WAVE scheduling only
    */
   @Column({ nullable: true })
-  slotDuration: number;
+  slotDuration?: number;
+
+  @Column({ nullable: true })
+  maxPatientsPerSlot?: number;
 
   /**
-   * 🔹 Max patients per slot (ONLY for WAVE)
+   * 🔹 STREAM scheduling only
+   * Total capacity for entire stream
    */
   @Column({ nullable: true })
-  maxPatientsPerSlot: number;
+  maxCapacity?: number;
 
   @Column({ default: true })
   isActive: boolean;

@@ -10,7 +10,7 @@ import { Doctor } from '../../modules/doctor/doctor.entity';
   imports: [
     TypeOrmModule.forFeature([
       Availability,
-      Doctor, // ✅ VERY IMPORTANT
+      Doctor, // 
     ]),
   ],
   controllers: [AvailabilityController],

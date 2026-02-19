@@ -7,7 +7,7 @@ import {
 import { Doctor } from '../../modules/doctor/doctor.entity';
 
 /**
- * 🔹 Recurring availability ke liye
+ * 🔹 Day of week (for recurring availability)
  */
 export enum Day {
   MONDAY = 'MONDAY',
@@ -35,64 +35,60 @@ export enum SchedulingType {
   STREAM = 'STREAM',
 }
 
+/**
+ * 🔹 Time of Day (mentor feedback)
+ */
+export enum TimeOfDay {
+  MORNING = 'MORNING',
+  EVENING = 'EVENING',
+}
+
 @Entity()
 export class Availability {
   @PrimaryGeneratedColumn()
   id: number;
 
-  /**
-   * 🔹 Day of week (ONLY for RECURRING)
-   */
+  // 🔹 Only for RECURRING
   @Column({ type: 'text', nullable: true })
   day?: Day;
 
-  /**
-   * 🔹 Specific date (ONLY for CUSTOM)
-   * YYYY-MM-DD
-   */
+  // 🔹 Only for CUSTOM (YYYY-MM-DD)
   @Column({ type: 'date', nullable: true })
   date?: string;
 
-  /**
-   * 🔹 Availability type
-   */
   @Column({
     type: 'text',
     default: AvailabilityType.RECURRING,
   })
   availabilityType: AvailabilityType;
 
-  /**
-   * 🔹 Scheduling type
-   */
   @Column({
     type: 'text',
     default: SchedulingType.WAVE,
   })
   schedulingType: SchedulingType;
 
-  /**
-   * 🔹 Common time window
-   */
+  // 🔹 MORNING / EVENING (NEW – feedback based)
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
+  timeOfDay?: TimeOfDay;
+
   @Column({ type: 'time' })
   startTime: string;
 
   @Column({ type: 'time' })
   endTime: string;
 
-  /**
-   * 🔹 WAVE scheduling only
-   */
+  // 🔹 WAVE only
   @Column({ nullable: true })
   slotDuration?: number;
 
   @Column({ nullable: true })
   maxPatientsPerSlot?: number;
 
-  /**
-   * 🔹 STREAM scheduling only
-   * Total capacity for entire stream
-   */
+  // 🔹 STREAM only (one big slot)
   @Column({ nullable: true })
   maxCapacity?: number;
 

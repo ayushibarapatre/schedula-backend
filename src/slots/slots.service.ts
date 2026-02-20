@@ -7,7 +7,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Slot } from './slot.entity';
-import { Availability, SchedulingType } from './availability/availability.entity';
+import {
+  Availability,
+  SchedulingType,
+} from './availability/availability.entity';
 
 @Injectable()
 export class SlotsService {
@@ -34,51 +37,101 @@ export class SlotsService {
     return `${h}:${m}`;
   }
 
-  // 🔹 GENERATE SLOTS (ONLY FOR WAVE)
+  // 🔹 Generate slots (WAVE only)
   async generateSlots(availabilityId: number) {
-    const availability = await this.availabilityRepository.findOne({
-      where: { id: availabilityId },
-    });
+    const availability =
+      await this.availabilityRepository.findOne({
+        where: { id: availabilityId },
+      });
 
     if (!availability) {
-      throw new NotFoundException('Availability not found');
+      throw new NotFoundException(
+        'Availability not found',
+      );
     }
 
-    // 🚫 STREAM → slot generation NOT allowed
-    if (availability.schedulingType === SchedulingType.STREAM) {
+    if (
+      availability.schedulingType ===
+      SchedulingType.STREAM
+    ) {
       throw new BadRequestException(
         'Slots are not generated for STREAM scheduling',
       );
     }
 
-    // ✅ WAVE → slotDuration MUST exist
-    if (!availability.slotDuration) {
+    const existing = await this.slotRepository.findOne({
+      where: { availability: { id: availabilityId } },
+    });
+
+    if (existing) {
       throw new BadRequestException(
-        'slotDuration is required for WAVE scheduling',
+        'Slots already generated',
       );
     }
 
-    const start = this.timeToMinutes(availability.startTime);
-    const end = this.timeToMinutes(availability.endTime);
-    const duration = availability.slotDuration;
+    const start = this.timeToMinutes(
+      availability.startTime,
+    );
+    const end = this.timeToMinutes(
+      availability.endTime,
+    );
+    const duration = availability.slotDuration!;
 
     const slots: Slot[] = [];
     let current = start;
 
     while (current + duration <= end) {
-      const slot = this.slotRepository.create({
-        availability,
-        startTime: this.minutesToTime(current),
-        endTime: this.minutesToTime(current + duration),
-        maxPatients: availability.maxPatientsPerSlot!,
-        bookedCount: 0,
-        isActive: true,
-      });
-
-      slots.push(slot);
+      slots.push(
+        this.slotRepository.create({
+          availability,
+          startTime: this.minutesToTime(current),
+          endTime: this.minutesToTime(
+            current + duration,
+          ),
+          maxPatients:
+            availability.maxPatientsPerSlot!,
+          bookedCount: 0,
+          isActive: true,
+        }),
+      );
       current += duration;
     }
 
     return this.slotRepository.save(slots);
+  }
+
+  // 🔹 Get ALL slots for an availability
+  async getSlotsByAvailability(
+    availabilityId: number,
+  ) {
+    const slots = await this.slotRepository.find({
+      where: {
+        availability: { id: availabilityId },
+        isActive: true,
+      },
+      relations: ['availability'],
+    });
+
+    if (!slots.length) {
+      throw new NotFoundException(
+        'No slots found for this availability',
+      );
+    }
+
+    return slots;
+  }
+
+  // 🔹 Get ONE slot by slotId ✅
+  async getSlotById(slotId: number) {
+    const slot = await this.slotRepository.findOne({
+      where: { id: slotId },
+      relations: ['availability'],
+    });
+
+    if (!slot) {
+      throw new NotFoundException('Slot not found');
+    }
+
+    return slot;
   }
 }

@@ -1,3 +1,5 @@
+// src/modules/availability/availability.controller.ts
+
 import {
   Controller,
   Post,
@@ -6,6 +8,8 @@ import {
   UseGuards,
   Get,
   Query,
+  Delete,
+  Param,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AvailabilityService } from './availability.service';
@@ -18,6 +22,7 @@ export class AvailabilityController {
     private readonly availabilityService: AvailabilityService,
   ) {}
 
+  // ✅ CREATE availability (CUSTOM / RECURRING / STREAM)
   @Post()
   createAvailability(
     @Req() req: any,
@@ -30,15 +35,27 @@ export class AvailabilityController {
     );
   }
 
-  // 🔹 GET availability for a specific date
+  // ✅ GET availability by doctorId + date
   @Get()
   getAvailabilityForDate(
     @Query('doctorId') doctorId: number,
     @Query('date') date: string,
   ) {
     return this.availabilityService.getAvailabilityForDate(
-      doctorId,
+      Number(doctorId),
       date,
     );
   }
+
+  // ✅ DELETE availability by id  ⭐ (NEW)
+@Delete(':id')
+deleteAvailability(
+  @Param('id') id: string,
+  @Req() req: any,
+) {
+  return this.availabilityService.deleteAvailability(
+    req.user.sub,   // ✅ userId (string) FIRST
+    Number(id),     // ✅ availabilityId (number) SECOND
+  );
+}
 }

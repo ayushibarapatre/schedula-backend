@@ -7,7 +7,7 @@ import {
 import { Doctor } from '../../modules/doctor/doctor.entity';
 
 /**
- * 🔹 Recurring availability ke liye
+ * 🔹 Day of week (for recurring availability)
  */
 export enum Day {
   MONDAY = 'MONDAY',
@@ -21,8 +21,6 @@ export enum Day {
 
 /**
  * 🔹 Availability Type
- * RECURRING → har week repeat hoti hai
- * CUSTOM → specific date ke liye
  */
 export enum AvailabilityType {
   RECURRING = 'RECURRING',
@@ -31,12 +29,18 @@ export enum AvailabilityType {
 
 /**
  * 🔹 Scheduling Type
- * WAVE → slots + duration
- * STREAM → continuous time window
  */
 export enum SchedulingType {
   WAVE = 'WAVE',
   STREAM = 'STREAM',
+}
+
+/**
+ * 🔹 Time of Day (mentor feedback)
+ */
+export enum TimeOfDay {
+  MORNING = 'MORNING',
+  EVENING = 'EVENING',
 }
 
 @Entity()
@@ -44,36 +48,32 @@ export class Availability {
   @PrimaryGeneratedColumn()
   id: number;
 
-  /**
-   * 🔹 Day of week (ONLY for recurring availability)
-   */
+  // 🔹 Only for RECURRING
   @Column({ type: 'text', nullable: true })
-  day: Day;
+  day?: Day;
 
-  /**
-   * 🔹 Specific date (ONLY for custom availability)
-   * Format: YYYY-MM-DD
-   */
+  // 🔹 Only for CUSTOM (YYYY-MM-DD)
   @Column({ type: 'date', nullable: true })
-  date: string;
+  date?: string;
 
-  /**
-   * 🔹 RECURRING / CUSTOM
-   */
   @Column({
     type: 'text',
     default: AvailabilityType.RECURRING,
   })
   availabilityType: AvailabilityType;
 
-  /**
-   * 🔹 WAVE / STREAM
-   */
   @Column({
     type: 'text',
     default: SchedulingType.WAVE,
   })
   schedulingType: SchedulingType;
+
+  // 🔹 MORNING / EVENING (NEW – feedback based)
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
+  timeOfDay?: TimeOfDay;
 
   @Column({ type: 'time' })
   startTime: string;
@@ -81,17 +81,16 @@ export class Availability {
   @Column({ type: 'time' })
   endTime: string;
 
-  /**
-   * 🔹 Slot duration (ONLY for WAVE scheduling)
-   */
+  // 🔹 WAVE only
   @Column({ nullable: true })
-  slotDuration: number;
+  slotDuration?: number;
 
-  /**
-   * 🔹 Max patients per slot (ONLY for WAVE)
-   */
   @Column({ nullable: true })
-  maxPatientsPerSlot: number;
+  maxPatientsPerSlot?: number;
+
+  // 🔹 STREAM only (one big slot)
+  @Column({ nullable: true })
+  maxCapacity?: number;
 
   @Column({ default: true })
   isActive: boolean;

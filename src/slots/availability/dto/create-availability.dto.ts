@@ -1,12 +1,12 @@
 import {
   IsEnum,
   IsNotEmpty,
-  IsOptional,
   Matches,
   IsInt,
   Min,
   Max,
   ValidateIf,
+  IsOptional,
   IsEmpty,
 } from 'class-validator';
 
@@ -14,6 +14,7 @@ import {
   Day,
   AvailabilityType,
   SchedulingType,
+  TimeOfDay,
 } from '../availability.entity';
 
 export class CreateAvailabilityDto {
@@ -34,6 +35,10 @@ export class CreateAvailabilityDto {
   // 🔹 WAVE or STREAM
   @IsEnum(SchedulingType)
   schedulingType: SchedulingType;
+
+  // 🔹 MORNING / EVENING (mentor feedback)
+  @IsEnum(TimeOfDay)
+  timeOfDay: TimeOfDay;
 
   @IsNotEmpty()
   @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
@@ -56,12 +61,19 @@ export class CreateAvailabilityDto {
   @Max(50)
   maxPatientsPerSlot?: number;
 
-  // 🔹 STREAM MUST NOT have slots
+  // 🔹 STREAM ONLY (one big slot)
   @ValidateIf(o => o.schedulingType === SchedulingType.STREAM)
-  @IsEmpty({ message: 'slotDuration not allowed for STREAM scheduling' })
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  maxCapacity?: number;
+
+  // 🔹 STREAM must NOT have slot fields
+  @ValidateIf(o => o.schedulingType === SchedulingType.STREAM)
+  @IsEmpty({ message: 'slotDuration not allowed for STREAM' })
   slotDurationStreamCheck?: any;
 
   @ValidateIf(o => o.schedulingType === SchedulingType.STREAM)
-  @IsEmpty({ message: 'maxPatientsPerSlot not allowed for STREAM scheduling' })
+  @IsEmpty({ message: 'maxPatientsPerSlot not allowed for STREAM' })
   maxPatientsStreamCheck?: any;
 }

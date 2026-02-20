@@ -30,7 +30,7 @@ export class AvailabilityService {
     return h * 60 + m;
   }
 
-  // 🔹 CREATE AVAILABILITY (Recurring / Custom)
+  // 🔹 CREATE AVAILABILITY
   async addAvailability(
     userId: string,
     dto: CreateAvailabilityDto,
@@ -55,11 +55,11 @@ export class AvailabilityService {
       );
     }
 
-    // 3️⃣ Scheduling validation (WAVE)
+    // 3️⃣ WAVE validation
     if (dto.schedulingType === SchedulingType.WAVE) {
       if (
-        !dto.slotDuration ||
-        !dto.maxPatientsPerSlot
+        dto.slotDuration == null ||
+        dto.maxPatientsPerSlot == null
       ) {
         throw new BadRequestException(
           'slotDuration and maxPatientsPerSlot are required for WAVE scheduling',
@@ -67,7 +67,21 @@ export class AvailabilityService {
       }
     }
 
-    // 4️⃣ CUSTOM availability → override existing custom
+    // 4️⃣ STREAM validation ✅
+if (dto.schedulingType === SchedulingType.STREAM) {
+  if (dto.maxCapacity == null) {
+    throw new BadRequestException(
+      'maxCapacity is required for STREAM scheduling',
+    );
+  }
+
+  // STREAM me slots nahi hone chahiye
+  dto.slotDuration = undefined;
+  dto.maxPatientsPerSlot = undefined;
+}
+
+
+    // 5️⃣ CUSTOM availability → override existing custom
     if (dto.availabilityType === AvailabilityType.CUSTOM) {
       if (!dto.date) {
         throw new BadRequestException(
@@ -79,8 +93,7 @@ export class AvailabilityService {
         await this.availabilityRepository.findOne({
           where: {
             doctor: { id: doctor.id },
-            availabilityType:
-              AvailabilityType.CUSTOM,
+            availabilityType: AvailabilityType.CUSTOM,
             date: dto.date,
           },
         });
@@ -92,7 +105,7 @@ export class AvailabilityService {
       }
     }
 
-    // 5️⃣ Prevent duplicate RECURRING availability
+    // 6️⃣ Prevent duplicate RECURRING availability
     if (
       dto.availabilityType ===
       AvailabilityType.RECURRING
@@ -116,7 +129,7 @@ export class AvailabilityService {
       }
     }
 
-    // 6️⃣ Save availability
+    // 7️⃣ Save availability
     const availability =
       this.availabilityRepository.create({
         ...dto,
@@ -164,19 +177,19 @@ export class AvailabilityService {
     };
   }
 
-  // 🔹 GET AVAILABILITY FOR A SPECIFIC DATE
+  // 🔹 GET AVAILABILITY FOR A DATE
   async getAvailabilityForDate(
     doctorId: number,
-    date: string, // YYYY-MM-DD
+    date: string,
   ) {
-    // 1️⃣ Check CUSTOM availability first
+    // CUSTOM first
     const customAvailability =
       await this.availabilityRepository.findOne({
         where: {
           doctor: { id: doctorId },
           availabilityType:
             AvailabilityType.CUSTOM,
-          date: date,
+          date,
           isActive: true,
         },
       });
@@ -188,14 +201,13 @@ export class AvailabilityService {
       };
     }
 
-    // 2️⃣ Get day from date
+    // RECURRING fallback
     const dayOfWeek = new Date(date)
       .toLocaleDateString('en-US', {
         weekday: 'long',
       })
       .toUpperCase();
 
-    // 3️⃣ Check RECURRING availability
     const recurringAvailability =
       await this.availabilityRepository.findOne({
         where: {
@@ -214,7 +226,6 @@ export class AvailabilityService {
       };
     }
 
-    // 4️⃣ No availability
     throw new NotFoundException(
       'Doctor is not available on this date',
     );

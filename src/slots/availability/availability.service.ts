@@ -67,21 +67,20 @@ export class AvailabilityService {
       }
     }
 
-    // 4️⃣ STREAM validation ✅
-if (dto.schedulingType === SchedulingType.STREAM) {
-  if (dto.maxCapacity == null) {
-    throw new BadRequestException(
-      'maxCapacity is required for STREAM scheduling',
-    );
-  }
+    // 4️⃣ STREAM validation
+    if (dto.schedulingType === SchedulingType.STREAM) {
+      if (dto.maxCapacity == null) {
+        throw new BadRequestException(
+          'maxCapacity is required for STREAM scheduling',
+        );
+      }
 
-  // STREAM me slots nahi hone chahiye
-  dto.slotDuration = undefined;
-  dto.maxPatientsPerSlot = undefined;
-}
+      // STREAM me slots nahi hote
+      dto.slotDuration = undefined;
+      dto.maxPatientsPerSlot = undefined;
+    }
 
-
-    // 5️⃣ CUSTOM availability → override existing custom
+    // 5️⃣ CUSTOM → override existing custom
     if (dto.availabilityType === AvailabilityType.CUSTOM) {
       if (!dto.date) {
         throw new BadRequestException(
@@ -99,23 +98,17 @@ if (dto.schedulingType === SchedulingType.STREAM) {
         });
 
       if (existingCustom) {
-        await this.availabilityRepository.remove(
-          existingCustom,
-        );
+        await this.availabilityRepository.remove(existingCustom);
       }
     }
 
-    // 6️⃣ Prevent duplicate RECURRING availability
-    if (
-      dto.availabilityType ===
-      AvailabilityType.RECURRING
-    ) {
+    // 6️⃣ Prevent duplicate RECURRING
+    if (dto.availabilityType === AvailabilityType.RECURRING) {
       const existingRecurring =
         await this.availabilityRepository.findOne({
           where: {
             doctor: { id: doctor.id },
-            availabilityType:
-              AvailabilityType.RECURRING,
+            availabilityType: AvailabilityType.RECURRING,
             day: dto.day,
             startTime: dto.startTime,
             endTime: dto.endTime,
@@ -129,25 +122,24 @@ if (dto.schedulingType === SchedulingType.STREAM) {
       }
     }
 
-    // 7️⃣ Save availability
+    // 7️⃣ Save
     const availability =
       this.availabilityRepository.create({
         ...dto,
         doctor,
       });
 
-    return this.availabilityRepository.save(
-      availability,
-    );
+    return this.availabilityRepository.save(availability);
   }
 
-  // 🔹 DELETE AVAILABILITY
+  // 🔹 DELETE AVAILABILITY (ORDER FIXED)
   async deleteAvailability(
     userId: string,
     availabilityId: number,
   ) {
     const doctor = await this.doctorRepository.findOne({
       where: { user: { id: userId } },
+      relations: ['user'],
     });
 
     if (!doctor) {
@@ -163,14 +155,10 @@ if (dto.schedulingType === SchedulingType.STREAM) {
       });
 
     if (!availability) {
-      throw new NotFoundException(
-        'Availability not found',
-      );
+      throw new NotFoundException('Availability not found');
     }
 
-    await this.availabilityRepository.remove(
-      availability,
-    );
+    await this.availabilityRepository.remove(availability);
 
     return {
       message: 'Availability deleted successfully',
@@ -182,13 +170,12 @@ if (dto.schedulingType === SchedulingType.STREAM) {
     doctorId: number,
     date: string,
   ) {
-    // CUSTOM first
+    // 1️⃣ CUSTOM first
     const customAvailability =
       await this.availabilityRepository.findOne({
         where: {
           doctor: { id: doctorId },
-          availabilityType:
-            AvailabilityType.CUSTOM,
+          availabilityType: AvailabilityType.CUSTOM,
           date,
           isActive: true,
         },
@@ -201,7 +188,7 @@ if (dto.schedulingType === SchedulingType.STREAM) {
       };
     }
 
-    // RECURRING fallback
+    // 2️⃣ RECURRING fallback
     const dayOfWeek = new Date(date)
       .toLocaleDateString('en-US', {
         weekday: 'long',
@@ -212,8 +199,7 @@ if (dto.schedulingType === SchedulingType.STREAM) {
       await this.availabilityRepository.findOne({
         where: {
           doctor: { id: doctorId },
-          availabilityType:
-            AvailabilityType.RECURRING,
+          availabilityType: AvailabilityType.RECURRING,
           day: dayOfWeek as any,
           isActive: true,
         },

@@ -11,25 +11,24 @@ export enum AppointmentStatus {
   RESCHEDULED = 'RESCHEDULED',
 }
 
-export enum ScheduleType {
-  STREAM = 'STREAM',
-  WAVE = 'WAVE',
-}
-
 @Entity()
 export class Appointment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  // 🔹 Doctor (UUID from User)
   @Column()
   doctorId: string;
 
+  // 🔹 Patient (UUID from User)
   @Column()
   patientId: string;
 
-  @Column({ type: 'date' })
-  date: string;
+  // 🔹 Slot reference (IMPORTANT)
+  @Column()
+  slotId: number;
 
+  // 🔹 Derived from Slot (for record/history)
   @Column({ type: 'time' })
   startTime: string;
 
@@ -38,16 +37,11 @@ export class Appointment {
 
   @Column({
     type: 'text',
-  })
-  scheduleType: ScheduleType;
-
-  @Column({
-    type: 'text',
     default: AppointmentStatus.BOOKED,
   })
   status: AppointmentStatus;
 
-  // 🔹 For reschedule tracking (old appointment id)
+  // 🔹 For reschedule tracking
   @Column({ nullable: true })
   rescheduledFrom?: string;
 

@@ -11,6 +11,10 @@ import {
   Availability,
   SchedulingType,
 } from './availability/availability.entity';
+import {
+  Appointment,
+  AppointmentStatus,
+} from '../appointment/appointment.entity';
 
 @Injectable()
 export class SlotsService {
@@ -20,15 +24,17 @@ export class SlotsService {
 
     @InjectRepository(Availability)
     private readonly availabilityRepository: Repository<Availability>,
+
+    @InjectRepository(Appointment)
+    private readonly appointmentRepository: Repository<Appointment>,
   ) {}
 
-  // 🔹 helper: HH:mm → minutes
+  // ===================== HELPERS =====================
   private timeToMinutes(time: string): number {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
   }
 
-  // 🔹 helper: minutes → HH:mm
   private minutesToTime(minutes: number): string {
     const h = Math.floor(minutes / 60)
       .toString()
@@ -37,7 +43,7 @@ export class SlotsService {
     return `${h}:${m}`;
   }
 
-  // 🔹 Generate slots (WAVE only)
+  // ===================== SLOT GENERATION =====================
   async generateSlots(availabilityId: number) {
     const availability =
       await this.availabilityRepository.findOne({
@@ -45,9 +51,7 @@ export class SlotsService {
       });
 
     if (!availability) {
-      throw new NotFoundException(
-        'Availability not found',
-      );
+      throw new NotFoundException('Availability not found');
     }
 
     if (
@@ -100,7 +104,7 @@ export class SlotsService {
     return this.slotRepository.save(slots);
   }
 
-  // 🔹 STEP-1 CORE: Get ALL slots for doctor on selected date ✅
+  // ===================== CORE API (WITH isAvailable) =====================
   async getSlotsForDoctorByDate(
     doctorId: number,
     date: string,
@@ -122,16 +126,35 @@ export class SlotsService {
       );
     }
 
-    // 👇 IMPORTANT: controlled response (mentor requirement)
-    return slots.map(slot => ({
-      slotId: slot.id,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      availabilityId: slot.availability.id,
-    }));
+    // ✅ Explicitly typed response (fixes never[] error)
+    const response: {
+      slotId: number;
+      startTime: string;
+      endTime: string;
+      isAvailable: boolean;
+    }[] = [];
+
+    for (const slot of slots) {
+      const appointment =
+        await this.appointmentRepository.findOne({
+          where: {
+            slotId: slot.id,
+            status: AppointmentStatus.BOOKED,
+          },
+        });
+
+      response.push({
+        slotId: slot.id,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        isAvailable: !appointment, // 🔥 CORE LOGIC
+      });
+    }
+
+    return response;
   }
 
-  // 🔹 Get ALL slots by availability
+  // ===================== EXTRA APIs =====================
   async getSlotsByAvailability(
     availabilityId: number,
   ) {
@@ -152,7 +175,6 @@ export class SlotsService {
     return slots;
   }
 
-  // 🔹 Get ONE slot by slotId
   async getSlotById(slotId: number) {
     const slot = await this.slotRepository.findOne({
       where: { id: slotId },

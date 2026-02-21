@@ -5,9 +5,13 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AppointmentService } from './appointment.service';
 
+@UseGuards(AuthGuard('jwt'))
 @Controller('appointments')
 export class AppointmentController {
   constructor(
@@ -15,40 +19,49 @@ export class AppointmentController {
   ) {}
 
   // =====================================================
-  // 🔹 STEP 3: Appointment Booking (slotId based)
+  // 🔹 BOOK APPOINTMENT (slotId based)
   // =====================================================
   @Post('book')
   bookAppointment(
+    @Req() req: any,
     @Body('slotId', ParseIntPipe) slotId: number,
   ) {
+    const patientId = req.user.sub; // ✅ JWT se
     return this.appointmentService.bookAppointment(
       slotId,
+      patientId,
     );
   }
 
   // =====================================================
-  // 🔹 Appointment Reschedule (slotId based)
+  // 🔹 RESCHEDULE APPOINTMENT
   // =====================================================
   @Patch(':id/reschedule')
   rescheduleAppointment(
-    @Param('id', ParseIntPipe) appointmentId: number,
+    @Req() req: any,
+    @Param('id') appointmentId: string,
     @Body('slotId', ParseIntPipe) slotId: number,
   ) {
+    const patientId = req.user.sub;
     return this.appointmentService.rescheduleAppointment(
       appointmentId,
       slotId,
+      patientId,
     );
   }
 
   // =====================================================
-  // 🔹 Appointment Cancellation
+  // 🔹 CANCEL APPOINTMENT
   // =====================================================
   @Patch(':id/cancel')
   cancelAppointment(
-    @Param('id', ParseIntPipe) appointmentId: number,
+    @Req() req: any,
+    @Param('id') appointmentId: string,
   ) {
+    const patientId = req.user.sub;
     return this.appointmentService.cancelAppointment(
       appointmentId,
+      patientId,
     );
   }
 }

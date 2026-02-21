@@ -7,7 +7,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Slot } from './slot.entity';
-import { Availability, SchedulingType } from './availability/availability.entity';
+import {
+  Availability,
+  SchedulingType,
+  Day,
+} from './availability/availability.entity';
 
 @Injectable()
 export class SlotsService {
@@ -30,55 +34,126 @@ export class SlotsService {
     const h = Math.floor(minutes / 60)
       .toString()
       .padStart(2, '0');
-    const m = (minutes % 60).toString().padStart(2, '0');
+    const m = (minutes % 60)
+      .toString()
+      .padStart(2, '0');
     return `${h}:${m}`;
   }
 
-  // 🔹 GENERATE SLOTS (ONLY FOR WAVE)
+  // 🔹 GENERATE SLOTS (doctor side – WAVE only)
   async generateSlots(availabilityId: number) {
-    const availability = await this.availabilityRepository.findOne({
-      where: { id: availabilityId },
-    });
+    const availability =
+      await this.availabilityRepository.findOne({
+        where: { id: availabilityId },
+      });
 
     if (!availability) {
       throw new NotFoundException('Availability not found');
     }
 
-    // 🚫 STREAM → slot generation NOT allowed
-    if (availability.schedulingType === SchedulingType.STREAM) {
+    if (
+      availability.schedulingType ===
+      SchedulingType.STREAM
+    ) {
       throw new BadRequestException(
         'Slots are not generated for STREAM scheduling',
       );
     }
 
-    // ✅ WAVE → slotDuration MUST exist
-    if (!availability.slotDuration) {
+    const existing = await this.slotRepository.findOne({
+      where: { availability: { id: availabilityId } },
+    });
+
+    if (existing) {
       throw new BadRequestException(
-        'slotDuration is required for WAVE scheduling',
+        'Slots already generated',
       );
     }
 
-    const start = this.timeToMinutes(availability.startTime);
-    const end = this.timeToMinutes(availability.endTime);
-    const duration = availability.slotDuration;
+    const start = this.timeToMinutes(
+      availability.startTime,
+    );
+    const end = this.timeToMinutes(
+      availability.endTime,
+    );
+    const duration = availability.slotDuration!;
 
     const slots: Slot[] = [];
     let current = start;
 
     while (current + duration <= end) {
-      const slot = this.slotRepository.create({
-        availability,
-        startTime: this.minutesToTime(current),
-        endTime: this.minutesToTime(current + duration),
-        maxPatients: availability.maxPatientsPerSlot!,
-        bookedCount: 0,
-        isActive: true,
-      });
-
-      slots.push(slot);
+      slots.push(
+        this.slotRepository.create({
+          availability,
+          startTime: this.minutesToTime(current),
+          endTime: this.minutesToTime(
+            current + duration,
+          ),
+          maxPatients:
+            availability.maxPatientsPerSlot!,
+          bookedCount: 0,
+          isActive: true,
+        }),
+      );
       current += duration;
     }
 
     return this.slotRepository.save(slots);
+  }
+
+  // 🔹 PATIENT SIDE: GET slots by doctor + date ✅
+  async getSlotsByDoctorAndDate(
+    doctorId: number,
+    date: string,
+  ) {
+    if (!date) {
+      throw new BadRequestException('date is required');
+    }
+
+    // date → day (SATURDAY etc.)
+    const day = new Date(date)
+      .toLocaleDateString('en-US', {
+        weekday: 'long',
+      })
+      .toUpperCase() as Day;
+
+    // 1️⃣ find availability
+    const availability =
+      await this.availabilityRepository.findOne({
+        where: {
+          doctor: { id: doctorId },
+          day,
+          isActive: true,
+        },
+      });
+
+    if (!availability) {
+      throw new NotFoundException(
+        'Doctor is not available on this date',
+      );
+    }
+
+    // 2️⃣ find slots
+    const slots = await this.slotRepository.find({
+      where: {
+        availability: { id: availability.id },
+        isActive: true,
+      },
+    });
+
+    if (!slots.length) {
+      throw new NotFoundException(
+        'No slots found for this doctor',
+      );
+    }
+
+    // 3️⃣ clean response (mentor requirement)
+    return slots.map(slot => ({
+      slotId: slot.id,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      isAvailable:
+        slot.bookedCount < slot.maxPatients,
+    }));
   }
 }

@@ -100,7 +100,38 @@ export class SlotsService {
     return this.slotRepository.save(slots);
   }
 
-  // 🔹 Get ALL slots for an availability
+  // 🔹 STEP-1 CORE: Get ALL slots for doctor on selected date ✅
+  async getSlotsForDoctorByDate(
+    doctorId: number,
+    date: string,
+  ) {
+    const slots = await this.slotRepository.find({
+      where: {
+        availability: {
+          doctor: { id: doctorId },
+          isActive: true,
+        },
+        isActive: true,
+      },
+      relations: ['availability', 'availability.doctor'],
+    });
+
+    if (!slots.length) {
+      throw new NotFoundException(
+        'No slots found for this doctor',
+      );
+    }
+
+    // 👇 IMPORTANT: controlled response (mentor requirement)
+    return slots.map(slot => ({
+      slotId: slot.id,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      availabilityId: slot.availability.id,
+    }));
+  }
+
+  // 🔹 Get ALL slots by availability
   async getSlotsByAvailability(
     availabilityId: number,
   ) {
@@ -121,7 +152,7 @@ export class SlotsService {
     return slots;
   }
 
-  // 🔹 Get ONE slot by slotId ✅
+  // 🔹 Get ONE slot by slotId
   async getSlotById(slotId: number) {
     const slot = await this.slotRepository.findOne({
       where: { id: slotId },

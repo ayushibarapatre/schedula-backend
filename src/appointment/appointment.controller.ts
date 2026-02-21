@@ -1,31 +1,54 @@
-import { Controller, Post, Patch, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Patch,
+  Body,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { AppointmentService } from './appointment.service';
 
 @Controller('appointments')
 export class AppointmentController {
-  constructor(private readonly appointmentService: AppointmentService) {}
+  constructor(
+    private readonly appointmentService: AppointmentService,
+  ) {}
 
-  // 🔹 Appointment Booking
-  @Post()
-  bookAppointment(@Body() body: any) {
-    return this.appointmentService.bookAppointment(body);
-  }
-
-  // 🔹 Appointment Reschedule
-  @Patch(':id/reschedule')
-  rescheduleAppointment(
-    @Param('id') appointmentId: string,
-    @Body() body: any,
+  // =====================================================
+  // 🔹 STEP 3: Appointment Booking (slotId based)
+  // =====================================================
+  @Post('book')
+  bookAppointment(
+    @Body('slotId', ParseIntPipe) slotId: number,
   ) {
-    return this.appointmentService.rescheduleAppointment(
-      appointmentId,
-      body,
+    return this.appointmentService.bookAppointment(
+      slotId,
     );
   }
 
-  // ❌ Appointment Cancellation (Doctor / Patient)
+  // =====================================================
+  // 🔹 Appointment Reschedule (slotId based)
+  // =====================================================
+  @Patch(':id/reschedule')
+  rescheduleAppointment(
+    @Param('id', ParseIntPipe) appointmentId: number,
+    @Body('slotId', ParseIntPipe) slotId: number,
+  ) {
+    return this.appointmentService.rescheduleAppointment(
+      appointmentId,
+      slotId,
+    );
+  }
+
+  // =====================================================
+  // 🔹 Appointment Cancellation
+  // =====================================================
   @Patch(':id/cancel')
-  cancelAppointment(@Param('id') appointmentId: string) {
-    return this.appointmentService.cancelAppointment(appointmentId);
+  cancelAppointment(
+    @Param('id', ParseIntPipe) appointmentId: number,
+  ) {
+    return this.appointmentService.cancelAppointment(
+      appointmentId,
+    );
   }
 }

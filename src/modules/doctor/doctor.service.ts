@@ -1,37 +1,25 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Doctor } from './doctor.entity';
-import { User } from '../auth/user.entity';
+// src/modules/doctor/doctor.service.ts
+
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class DoctorService {
-  constructor(
-    @InjectRepository(Doctor)
-    private readonly doctorRepo: Repository<Doctor>,
 
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
-  ) {}
-
+  // 🔹 CREATE doctor profile
   async createDoctorProfile(userId: string) {
-    const user = await this.userRepo.findOne({
-      where: { id: userId },
-    });
+    // DB logic baad me aayega
+    return {
+      message: 'Doctor profile created successfully',
+      userId,
+    };
+  }
 
-    if (!user) {
-      throw new BadRequestException('User not found');
-    }
+  // 🔹 GET doctor profile
+  async getDoctorProfile(userId: string) {
+    // DB se profile fetch karna hoga
 
-    const existing = await this.doctorRepo.findOne({
-      where: { user: { id: userId } },
-    });
-
-    if (existing) {
-      return existing; // already created
-    }
-
-    const doctor = this.doctorRepo.create({ user });
-    return this.doctorRepo.save(doctor);
+    return {
+      userId,
+    };
   }
 }

@@ -15,23 +15,45 @@ import { SlotsService } from './slots.service';
 export class SlotsController {
   constructor(private readonly slotsService: SlotsService) {}
 
-  // Generate slots
+  // 🔹 Generate slots from availability
   @Post('generate/:availabilityId')
   generate(
-    @Param('availabilityId', ParseIntPipe) id: number,
+    @Param('availabilityId', ParseIntPipe)
+    availabilityId: number,
   ) {
-    return this.slotsService.generateSlots(id);
+    return this.slotsService.generateSlots(availabilityId);
   }
 
-  // ✅ NEW: Get slots by doctor + date (PATIENT SIDE)
+  // 🔹 Get slots for doctor on selected date (PATIENT SIDE)
   @Get('doctor/:doctorId')
-  getSlotsByDoctorAndDate(
-    @Param('doctorId', ParseIntPipe) doctorId: number,
+  getSlotsForDoctorByDate(
+    @Param('doctorId', ParseIntPipe)
+    doctorId: number,
     @Query('date') date: string,
   ) {
-    return this.slotsService.getSlotsByDoctorAndDate(
+    return this.slotsService.getSlotsForDoctorByDate(
       doctorId,
       date,
     );
+  }
+
+  // 🔹 Get ALL slots by availabilityId
+  @Get('availability/:availabilityId')
+  getSlotsByAvailability(
+    @Param('availabilityId', ParseIntPipe)
+    availabilityId: number,
+  ) {
+    return this.slotsService.getSlotsByAvailability(
+      availabilityId,
+    );
+  }
+
+  // 🔹 Get ONE slot by slotId
+  @Get('slot/:slotId')
+  getOneSlot(
+    @Param('slotId', ParseIntPipe)
+    slotId: number,
+  ) {
+    return this.slotsService.getSlotById(slotId);
   }
 }

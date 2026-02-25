@@ -12,6 +12,10 @@ import {
   SchedulingType,
   Day,
 } from './availability/availability.entity';
+import {
+  Appointment,
+  AppointmentStatus,
+} from '../appointment/appointment.entity';
 
 @Injectable()
 export class SlotsService {
@@ -21,15 +25,17 @@ export class SlotsService {
 
     @InjectRepository(Availability)
     private readonly availabilityRepository: Repository<Availability>,
+
+    @InjectRepository(Appointment)
+    private readonly appointmentRepository: Repository<Appointment>,
   ) {}
 
-  // 🔹 helper: HH:mm → minutes
+  // ===================== HELPERS =====================
   private timeToMinutes(time: string): number {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
   }
 
-  // 🔹 helper: minutes → HH:mm
   private minutesToTime(minutes: number): string {
     const h = Math.floor(minutes / 60)
       .toString()
@@ -40,7 +46,7 @@ export class SlotsService {
     return `${h}:${m}`;
   }
 
-  // 🔹 GENERATE SLOTS (doctor side – WAVE only)
+  // ===================== SLOT GENERATION =====================
   async generateSlots(availabilityId: number) {
     const availability =
       await this.availabilityRepository.findOne({
@@ -52,8 +58,7 @@ export class SlotsService {
     }
 
     if (
-      availability.schedulingType ===
-      SchedulingType.STREAM
+      availability.schedulingType === SchedulingType.STREAM
     ) {
       throw new BadRequestException(
         'Slots are not generated for STREAM scheduling',
@@ -101,8 +106,8 @@ export class SlotsService {
     return this.slotRepository.save(slots);
   }
 
-  // 🔹 PATIENT SIDE: GET slots by doctor + date ✅
-  async getSlotsByDoctorAndDate(
+  // ===================== PATIENT SIDE =====================
+  async getSlotsForDoctorByDate(
     doctorId: number,
     date: string,
   ) {
@@ -110,14 +115,13 @@ export class SlotsService {
       throw new BadRequestException('date is required');
     }
 
-    // date → day (SATURDAY etc.)
+    // date → day (MONDAY, TUESDAY...)
     const day = new Date(date)
       .toLocaleDateString('en-US', {
         weekday: 'long',
       })
       .toUpperCase() as Day;
 
-    // 1️⃣ find availability
     const availability =
       await this.availabilityRepository.findOne({
         where: {
@@ -133,7 +137,6 @@ export class SlotsService {
       );
     }
 
-    // 2️⃣ find slots
     const slots = await this.slotRepository.find({
       where: {
         availability: { id: availability.id },
@@ -147,13 +150,64 @@ export class SlotsService {
       );
     }
 
-    // 3️⃣ clean response (mentor requirement)
-    return slots.map(slot => ({
-      slotId: slot.id,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      isAvailable:
-        slot.bookedCount < slot.maxPatients,
-    }));
+    const response: {
+      slotId: number;
+      startTime: string;
+      endTime: string;
+      isAvailable: boolean;
+    }[] = [];
+
+    for (const slot of slots) {
+      const appointment =
+        await this.appointmentRepository.findOne({
+          where: {
+            slotId: slot.id,
+            status: AppointmentStatus.BOOKED,
+          },
+        });
+
+      response.push({
+        slotId: slot.id,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        isAvailable: !appointment,
+      });
+    }
+
+    return response;
+  }
+
+  // ===================== EXTRA APIs =====================
+  async getSlotsByAvailability(
+    availabilityId: number,
+  ) {
+    const slots = await this.slotRepository.find({
+      where: {
+        availability: { id: availabilityId },
+        isActive: true,
+      },
+      relations: ['availability'],
+    });
+
+    if (!slots.length) {
+      throw new NotFoundException(
+        'No slots found for this availability',
+      );
+    }
+
+    return slots;
+  }
+
+  async getSlotById(slotId: number) {
+    const slot = await this.slotRepository.findOne({
+      where: { id: slotId },
+      relations: ['availability'],
+    });
+
+    if (!slot) {
+      throw new NotFoundException('Slot not found');
+    }
+
+    return slot;
   }
 }

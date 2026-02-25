@@ -21,8 +21,19 @@ export class SlotsController {
     @Param('availabilityId', ParseIntPipe)
     availabilityId: number,
   ) {
-    return this.slotsService.generateSlots(
-      availabilityId,
+    return this.slotsService.generateSlots(availabilityId);
+  }
+
+  // 🔹 Get slots for doctor on selected date (PATIENT SIDE)
+  @Get('doctor/:doctorId')
+  getSlotsForDoctorByDate(
+    @Param('doctorId', ParseIntPipe)
+    doctorId: number,
+    @Query('date') date: string,
+  ) {
+    return this.slotsService.getSlotsForDoctorByDate(
+      doctorId,
+      date,
     );
   }
 
@@ -34,20 +45,6 @@ export class SlotsController {
   ) {
     return this.slotsService.getSlotsByAvailability(
       availabilityId,
-    );
-  }
-
-  // 🔹 STEP 1: Get slots for doctor on selected date ✅
-  @Get('doctor/:doctorId')
-  getSlotsForDoctorByDate(
-    @Param('doctorId', ParseIntPipe)
-    doctorId: number,
-    @Query('date')
-    date: string,
-  ) {
-    return this.slotsService.getSlotsForDoctorByDate(
-      doctorId,
-      date,
     );
   }
 

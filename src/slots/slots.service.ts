@@ -10,6 +10,7 @@ import { Slot } from './slot.entity';
 import {
   Availability,
   SchedulingType,
+  Day,
 } from './availability/availability.entity';
 import {
   Appointment,
@@ -39,7 +40,9 @@ export class SlotsService {
     const h = Math.floor(minutes / 60)
       .toString()
       .padStart(2, '0');
-    const m = (minutes % 60).toString().padStart(2, '0');
+    const m = (minutes % 60)
+      .toString()
+      .padStart(2, '0');
     return `${h}:${m}`;
   }
 
@@ -55,8 +58,7 @@ export class SlotsService {
     }
 
     if (
-      availability.schedulingType ===
-      SchedulingType.STREAM
+      availability.schedulingType === SchedulingType.STREAM
     ) {
       throw new BadRequestException(
         'Slots are not generated for STREAM scheduling',
@@ -104,20 +106,42 @@ export class SlotsService {
     return this.slotRepository.save(slots);
   }
 
-  // ===================== CORE API (WITH isAvailable) =====================
+  // ===================== PATIENT SIDE =====================
   async getSlotsForDoctorByDate(
     doctorId: number,
     date: string,
   ) {
-    const slots = await this.slotRepository.find({
-      where: {
-        availability: {
+    if (!date) {
+      throw new BadRequestException('date is required');
+    }
+
+    // date → day (MONDAY, TUESDAY...)
+    const day = new Date(date)
+      .toLocaleDateString('en-US', {
+        weekday: 'long',
+      })
+      .toUpperCase() as Day;
+
+    const availability =
+      await this.availabilityRepository.findOne({
+        where: {
           doctor: { id: doctorId },
+          day,
           isActive: true,
         },
+      });
+
+    if (!availability) {
+      throw new NotFoundException(
+        'Doctor is not available on this date',
+      );
+    }
+
+    const slots = await this.slotRepository.find({
+      where: {
+        availability: { id: availability.id },
         isActive: true,
       },
-      relations: ['availability', 'availability.doctor'],
     });
 
     if (!slots.length) {
@@ -126,7 +150,6 @@ export class SlotsService {
       );
     }
 
-    // ✅ Explicitly typed response (fixes never[] error)
     const response: {
       slotId: number;
       startTime: string;
@@ -147,7 +170,7 @@ export class SlotsService {
         slotId: slot.id,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        isAvailable: !appointment, // 🔥 CORE LOGIC
+        isAvailable: !appointment,
       });
     }
 

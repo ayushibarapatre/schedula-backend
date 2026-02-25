@@ -10,23 +10,30 @@ import { AppointmentModule } from './appointment/appointment.module';
 
 @Module({
   imports: [
+    // ✅ ENV support
     ConfigModule.forRoot({
       isGlobal: true,
     }),
 
+    // ✅ PostgreSQL TypeORM config
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        type: 'sqlite',
-        database: 'db_dev.sqlite',
+        type: 'postgres',
+        host: config.get('DB_HOST'),
+        port: Number(config.get('DB_PORT')),
+        username: config.get('DB_USERNAME'),
+        password: String(config.get('DB_PASSWORD')),
+        database: config.get('DB_NAME'),
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: true, // demo ke liye OK
       }),
     }),
 
+    // ✅ Feature Modules
     AuthModule,
-    DoctorModule,        // ✅ REQUIRED
-    AvailabilityModule,  // ✅ REQUIRED
+    DoctorModule,
+    AvailabilityModule,
     SlotsModule,
     AppointmentModule,
   ],

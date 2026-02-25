@@ -1,62 +1,63 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Appointment, AppointmentStatus, ScheduleType } from './appointment.entity';
+
+import {
+  Appointment,
+  AppointmentStatus,
+} from './appointment.entity';
+import { Slot } from '../slots/slot.entity';
 
 @Injectable()
 export class AppointmentService {
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepo: Repository<Appointment>,
+
+    @InjectRepository(Slot)
+    private readonly slotRepository: Repository<Slot>,
   ) {}
 
-  // 🔹 APPOINTMENT BOOKING
-  async bookAppointment(body: any) {
-    const {
-      doctorId,
-      patientId,
-      date,
-      startTime,
-      endTime,
-      scheduleType,
-    } = body;
+  // =====================================================
+  // 🔹 BOOK APPOINTMENT
+  // =====================================================
+  async bookAppointment(
+    slotId: number,
+    patientId: string,
+  ) {
+    // 1️⃣ slot fetch
+    const slot = await this.slotRepository.findOne({
+      where: { id: slotId, isActive: true },
+      relations: ['availability', 'availability.doctor', 'availability.doctor.user'],
+    });
 
-    if (!doctorId || !patientId || !date || !startTime || !scheduleType) {
-      throw new BadRequestException('Missing required appointment fields');
+    if (!slot) {
+      throw new BadRequestException('Slot not found');
     }
 
-    if (!Object.values(ScheduleType).includes(scheduleType)) {
-      throw new BadRequestException('Invalid scheduleType');
+    // 2️⃣ capacity check ✅ (MOST IMPORTANT)
+    if (slot.bookedCount >= slot.maxPatients) {
+      throw new BadRequestException('Slot already booked');
     }
 
-    // 🔹 WAVE: slot clash check (DB)
-    if (scheduleType === ScheduleType.WAVE) {
-      const existingSlot = await this.appointmentRepo.findOne({
-        where: {
-          doctorId,
-          date,
-          startTime,
-          endTime,
-          status: AppointmentStatus.BOOKED,
-        },
-      });
-
-      if (existingSlot) {
-        throw new BadRequestException('Slot already booked');
-      }
-    }
-
+    // 3️⃣ appointment create
     const appointment = this.appointmentRepo.create({
-      doctorId,
+      slotId: slot.id,
+      doctorId: slot.availability.doctor.user.id,
       patientId,
-      date,
-      startTime,
-      endTime,
-      scheduleType,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
       status: AppointmentStatus.BOOKED,
     });
 
     await this.appointmentRepo.save(appointment);
+
+    // 4️⃣ increment slot count ✅
+    slot.bookedCount += 1;
+    await this.slotRepository.save(slot);
 
     return {
       message: 'Appointment booked successfully',
@@ -64,78 +65,81 @@ export class AppointmentService {
     };
   }
 
-  // 🔁 APPOINTMENT RESCHEDULE
-  async rescheduleAppointment(appointmentId: string, body: any) {
-    const { date, startTime, endTime, scheduleType } = body;
-
-    const existingAppointment = await this.appointmentRepo.findOne({
-      where: { id: appointmentId },
+  // =====================================================
+  // 🔹 RESCHEDULE APPOINTMENT
+  // =====================================================
+  async rescheduleAppointment(
+    appointmentId: string,
+    slotId: number,
+    patientId: string,
+  ) {
+    const existing = await this.appointmentRepo.findOne({
+      where: { id: appointmentId, patientId },
     });
 
-    if (!existingAppointment) {
+    if (!existing) {
       throw new BadRequestException('Appointment not found');
     }
 
-    if (existingAppointment.status !== AppointmentStatus.BOOKED) {
+    if (existing.status !== AppointmentStatus.BOOKED) {
       throw new BadRequestException(
         'Only booked appointments can be rescheduled',
       );
     }
 
-    // 🔹 WAVE: new slot clash check
-    if (scheduleType === ScheduleType.WAVE) {
-      const slotBooked = await this.appointmentRepo.findOne({
-        where: {
-          doctorId: existingAppointment.doctorId,
-          date,
-          startTime,
-          endTime,
-          status: AppointmentStatus.BOOKED,
-        },
-      });
+    const newSlot = await this.slotRepository.findOne({
+      where: { id: slotId, isActive: true },
+      relations: ['availability', 'availability.doctor', 'availability.doctor.user'],
+    });
 
-      if (slotBooked) {
-        throw new BadRequestException('New slot already booked');
-      }
+    if (!newSlot) {
+      throw new BadRequestException('Slot not found');
     }
 
-    // 🔹 Old appointment → RESCHEDULED
-    existingAppointment.status = AppointmentStatus.RESCHEDULED;
-    await this.appointmentRepo.save(existingAppointment);
+    if (newSlot.bookedCount >= newSlot.maxPatients) {
+      throw new BadRequestException('Slot already booked');
+    }
 
-    // 🔹 New appointment → BOOKED
+    // old appointment → RESCHEDULED
+    existing.status = AppointmentStatus.RESCHEDULED;
+    await this.appointmentRepo.save(existing);
+
+    // new appointment
     const newAppointment = this.appointmentRepo.create({
-      doctorId: existingAppointment.doctorId,
-      patientId: existingAppointment.patientId,
-      date,
-      startTime,
-      endTime,
-      scheduleType,
+      slotId: newSlot.id,
+      doctorId: newSlot.availability.doctor.user.id,
+      patientId,
+      startTime: newSlot.startTime,
+      endTime: newSlot.endTime,
       status: AppointmentStatus.BOOKED,
-      rescheduledFrom: existingAppointment.id,
+      rescheduledFrom: existing.id,
     });
 
     await this.appointmentRepo.save(newAppointment);
 
+    // increment new slot
+    newSlot.bookedCount += 1;
+    await this.slotRepository.save(newSlot);
+
     return {
       message: 'Appointment rescheduled successfully',
-      oldAppointment: existingAppointment,
       newAppointment,
     };
   }
 
-  // ❌ APPOINTMENT CANCELLATION
-  async cancelAppointment(appointmentId: string) {
+  // =====================================================
+  // 🔹 CANCEL APPOINTMENT
+  // =====================================================
+  async cancelAppointment(
+    appointmentId: string,
+    patientId: string,
+  ) {
     const appointment = await this.appointmentRepo.findOne({
-      where: { id: appointmentId },
+      where: { id: appointmentId, patientId },
     });
 
     if (!appointment) {
       throw new BadRequestException('Appointment not found');
-    }
-
-    if (appointment.status === AppointmentStatus.CANCELLED) {
-      throw new BadRequestException('Appointment already cancelled');
     }
 
     if (appointment.status !== AppointmentStatus.BOOKED) {
@@ -151,7 +155,6 @@ export class AppointmentService {
 
     return {
       message: 'Appointment cancelled successfully',
-      appointment,
     };
   }
 }

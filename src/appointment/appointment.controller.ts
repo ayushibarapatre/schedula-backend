@@ -1,31 +1,67 @@
-import { Controller, Post, Patch, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Patch,
+  Body,
+  Param,
+  ParseIntPipe,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AppointmentService } from './appointment.service';
 
+@UseGuards(AuthGuard('jwt'))
 @Controller('appointments')
 export class AppointmentController {
-  constructor(private readonly appointmentService: AppointmentService) {}
+  constructor(
+    private readonly appointmentService: AppointmentService,
+  ) {}
 
-  // 🔹 Appointment Booking
-  @Post()
-  bookAppointment(@Body() body: any) {
-    return this.appointmentService.bookAppointment(body);
-  }
-
-  // 🔹 Appointment Reschedule
-  @Patch(':id/reschedule')
-  rescheduleAppointment(
-    @Param('id') appointmentId: string,
-    @Body() body: any,
+  // =====================================================
+  // 🔹 BOOK APPOINTMENT (slotId based)
+  // =====================================================
+  @Post('book')
+  bookAppointment(
+    @Req() req: any,
+    @Body('slotId', ParseIntPipe) slotId: number,
   ) {
-    return this.appointmentService.rescheduleAppointment(
-      appointmentId,
-      body,
+    const patientId = req.user.sub; // ✅ JWT se
+    return this.appointmentService.bookAppointment(
+      slotId,
+      patientId,
     );
   }
 
-  // ❌ Appointment Cancellation (Doctor / Patient)
+  // =====================================================
+  // 🔹 RESCHEDULE APPOINTMENT
+  // =====================================================
+  @Patch(':id/reschedule')
+  rescheduleAppointment(
+    @Req() req: any,
+    @Param('id') appointmentId: string,
+    @Body('slotId', ParseIntPipe) slotId: number,
+  ) {
+    const patientId = req.user.sub;
+    return this.appointmentService.rescheduleAppointment(
+      appointmentId,
+      slotId,
+      patientId,
+    );
+  }
+
+  // =====================================================
+  // 🔹 CANCEL APPOINTMENT
+  // =====================================================
   @Patch(':id/cancel')
-  cancelAppointment(@Param('id') appointmentId: string) {
-    return this.appointmentService.cancelAppointment(appointmentId);
+  cancelAppointment(
+    @Req() req: any,
+    @Param('id') appointmentId: string,
+  ) {
+    const patientId = req.user.sub;
+    return this.appointmentService.cancelAppointment(
+      appointmentId,
+      patientId,
+    );
   }
 }

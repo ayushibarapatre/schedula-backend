@@ -1,3 +1,5 @@
+// src/modules/doctor/doctor.module.ts
+
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Doctor } from './doctor.entity';
@@ -9,10 +11,11 @@ import { User } from '../auth/user.entity';
   imports: [
     TypeOrmModule.forFeature([
       Doctor,
-      User, // ✅ THIS WAS MISSING
+      User, // ✅ REQUIRED
     ]),
   ],
   controllers: [DoctorController],
   providers: [DoctorService],
+  exports: [DoctorService], // ✅ IMPORTANT for slots/availability
 })
 export class DoctorModule {}

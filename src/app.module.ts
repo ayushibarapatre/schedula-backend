@@ -1,5 +1,3 @@
-// src/app.module.ts
-
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -8,7 +6,6 @@ import { AuthModule } from './modules/auth/auth.module';
 import { DoctorModule } from './modules/doctor/doctor.module';
 import { AvailabilityModule } from './slots/availability/availability.module';
 import { SlotsModule } from './slots/slots.module';
-import { AppointmentModule } from './appointment/appointment.module';
 
 @Module({
   imports: [
@@ -17,23 +14,26 @@ import { AppointmentModule } from './appointment/appointment.module';
       isGlobal: true,
     }),
 
-    // ✅ Railway Postgres CONFIG (IMPORTANT)
+    // ✅ PostgreSQL TypeORM config
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        url: config.get<string>('DATABASE_URL'), // 🔥 MAIN FIX
+        host: config.get('DB_HOST'),
+        port: Number(config.get('DB_PORT')),
+        username: config.get('DB_USERNAME'),
+        password: String(config.get('DB_PASSWORD')),
+        database: config.get('DB_NAME'),
         autoLoadEntities: true,
-        synchronize: true, // demo / internship ke liye OK
+        synchronize: true, // demo ke liye OK
       }),
     }),
 
-    // ✅ Feature modules
+    // ✅ Feature Modules
     AuthModule,
     DoctorModule,
     AvailabilityModule,
     SlotsModule,
-    AppointmentModule,
   ],
 })
 export class AppModule {}

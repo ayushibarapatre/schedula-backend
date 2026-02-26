@@ -56,3 +56,8 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 .env
+# Database files
+*.sqlite
+*.sqlite3
+db.sqlite
+db_dev.sqlite

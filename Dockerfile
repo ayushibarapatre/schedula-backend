@@ -6,16 +6,20 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
-# Copy source
+# Copy source code
 COPY . .
 
-# Build NestJS
+# Build NestJS app
 RUN npm run build
 
-# 🔥 VERY IMPORTANT
+# Environment
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose port for Railway
 EXPOSE 3000
 
-# Start app
-CMD ["npm", "run", "start:prod"]
+# Start the app
+CMD ["node", "dist/main.js"]
